@@ -9,6 +9,7 @@ const defaultConfig = {
   poweredByHeader: true,
   distDir: '.next',
   assetPrefix: '',
+  baseUrl: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true
 }

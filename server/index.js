@@ -57,6 +57,7 @@ export default class Server {
     this.hotReloader = dev ? this.getHotReloader(this.dir, { quiet, conf }) : null
     this.http = null
     this.config = getConfig(this.dir, conf)
+
     this.dist = this.config.distDir
     if (!dev && !fs.existsSync(resolve(dir, this.dist, 'BUILD_ID'))) {
       console.error(`> Could not find a valid build in the '${this.dist}' directory! Try building your app with 'next build' before starting the server.`)
@@ -72,6 +73,7 @@ export default class Server {
       buildStats: this.buildStats,
       buildId: this.buildId,
       assetPrefix: this.config.assetPrefix.replace(/\/$/, ''),
+      baseUrl: this.config.baseUrl.replace(/\/$/, ''),
       availableChunks: dev ? {} : getAvailableChunks(this.dir, this.dist)
     }
 
@@ -129,14 +131,15 @@ export default class Server {
   }
 
   defineRoutes () {
+    const baseUrl = this.config.baseUrl || ''
     const routes = {
-      '/_next-prefetcher.js': async (req, res, params) => {
+      [`${baseUrl}/_next-prefetcher.js`]: async (req, res, params) => {
         const p = join(__dirname, '../client/next-prefetcher-bundle.js')
         await this.serveStatic(req, res, p)
       },
 
       // This is to support, webpack dynamic imports in production.
-      '/_next/:buildId/webpack/chunks/:name': async (req, res, params) => {
+      [`${baseUrl}/_next/:buildId/webpack/chunks/:name`]: async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           return this.send404(res)
         }
@@ -146,7 +149,7 @@ export default class Server {
       },
 
       // This is to support, webpack dynamic import support with HMR
-      '/_next/:buildId/webpack/:id': async (req, res, params) => {
+      [`${baseUrl}/_next/:buildId/webpack/:id`]: async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           return this.send404(res)
         }
@@ -155,7 +158,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/manifest.js': async (req, res, params) => {
+      [`${baseUrl}/_next/:hash/manifest.js`]: async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('manifest.js', params.hash, res)
@@ -163,7 +166,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/main.js': async (req, res, params) => {
+      [`${baseUrl}/_next/:hash/main.js`]: async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('main.js', params.hash, res)
@@ -171,7 +174,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/commons.js': async (req, res, params) => {
+      [`${baseUrl}/_next/:hash/commons.js`]: async (req, res, params) => {
         if (!this.dev) return this.send404(res)
 
         this.handleBuildHash('commons.js', params.hash, res)
@@ -179,7 +182,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:hash/app.js': async (req, res, params) => {
+      [`${baseUrl}/_next/:hash/app.js`]: async (req, res, params) => {
         if (this.dev) return this.send404(res)
 
         this.handleBuildHash('app.js', params.hash, res)
@@ -187,7 +190,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/_error*': async (req, res, params) => {
+      [`${baseUrl}/_next/:buildId/page/_error*`]: async (req, res, params) => {
         if (!this.handleBuildId(params.buildId, res)) {
           const error = new Error('INVALID_BUILD_ID')
           const customFields = { buildIdMismatched: true }
@@ -199,7 +202,7 @@ export default class Server {
         await this.serveStatic(req, res, p)
       },
 
-      '/_next/:buildId/page/:path*': async (req, res, params) => {
+      [`${baseUrl}/_next/:buildId/page/:path*`]: async (req, res, params) => {
         const paths = params.path || ['']
         const page = `/${paths.join('/')}`
 
@@ -231,7 +234,7 @@ export default class Server {
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      '/_next/:path*': async (req, res, params) => {
+      [`${baseUrl}/_next/:path*`]: async (req, res, params) => {
         const p = join(__dirname, '..', 'client', ...(params.path || []))
         await this.serveStatic(req, res, p)
       },
@@ -240,14 +243,14 @@ export default class Server {
       // (but it should support as many as params, seperated by '/')
       // Othewise this will lead to a pretty simple DOS attack.
       // See more: https://github.com/zeit/next.js/issues/2617
-      '/static/:path*': async (req, res, params) => {
+      [`${baseUrl}/static/:path*`]: async (req, res, params) => {
         const p = join(this.dir, 'static', ...(params.path || []))
         await this.serveStatic(req, res, p)
       }
     }
 
     if (this.config.useFileSystemPublicRoutes) {
-      routes['/:path*'] = async (req, res, params, parsedUrl) => {
+      routes[`${baseUrl}/:path*`] = async (req, res, params, parsedUrl) => {
         const { pathname, query } = parsedUrl
         await this.render(req, res, pathname, query)
       }
